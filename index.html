@@ -1,1 +1,83 @@
-<h1>QIF data modifier</h1>
+<!DOCTYPE html>
+<html lang="en">
+
+<head>
+    <meta charset="UTF-8">
+    <title>QIF data modifier</title> 
+     <script type="module">
+        import qifTs from 'https://cdn.jsdelivr.net/npm/qif-ts@1.0.0/+esm';
+        import {parse, format} from 'https://cdn.jsdelivr.net/npm/date-fns@3.6.0/+esm';
+
+        document.getElementById("readFileButton").addEventListener("click", (event) => {
+            readFile();
+        });
+
+        function createDownloadLink(fileContent, fileName) {
+            let downloadLink = document.getElementById('downloadLink');
+            let blob = new Blob([fileContent], { type: 'text/qif' });
+            let url = URL.createObjectURL(blob);
+
+            downloadLink.href = url;
+            downloadLink.download = fileName;
+            downloadLink.textContent = 'Download ' + fileName;
+            downloadLink.style.display = 'inline';
+        }
+
+        function readFile() {
+            let fileInput = document.getElementById('fileInput');
+            let file = fileInput.files[0]; // Get the file from the file input
+            let reader = new FileReader();
+
+            reader.onload = function (e) {
+                const qifData = qifTs.deserializeQif(e.target.result);
+                console.log("Data before filtering");
+                console.log(qifData);
+
+                const startDate = new Date(document.getElementById("startDate").value)
+                const endDate = new Date(document.getElementById("endDate").value)
+                
+                const filteredTransactions = qifData.transactions.filter((transaction) => {
+                    if (!transaction.date) {
+                        return true
+                    }
+                    const transactionDate = parse(transaction.date, 'dd/MM/yyyy', new Date())
+
+                    return transactionDate >= startDate && transactionDate <= endDate
+                })
+
+                console.log("Data after filtering");
+                console.log(filteredTransactions);
+
+                qifData.transactions = filteredTransactions
+                const qifText = qifTs.serializeQif(qifData);
+                
+                createDownloadLink(qifText, 'filtered-data-qif');
+            };
+
+            reader.onerror = function (e) {
+                console.error("Error reading file:", e.target.error);
+            };
+
+            reader.readAsText(file); // Read the file as text
+        }
+     </script>
+</head>
+<body>
+    <h1>QIF data modifier</h1>
+
+    <div>
+        Start date:
+        <input type="date" id="startDate">
+    </div>
+    <div>
+        End date:
+        <input type="date" id="endDate">
+    </div>
+    <div>
+        QIF file:
+        <input type="file" id="fileInput">
+    </div>
+    <button id="readFileButton">Read File</button>
+    <a id="downloadLink" style="display: none;">Download File</a>
+</body>
+</html>
